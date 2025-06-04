@@ -45,7 +45,6 @@ BREAKOUT_PRICE = .0001 # NOT USED YET 1/5/25
 SLEEP_AFTER_CLOSE = 600  # Prevent overtrading
 
 MAX_LOSS_GAIN_CHECK_HOURS = 12  # How far back to check for max loss/gain limits (in hours)
-SLEEP_BETWEEN_RUNS_MINUTES = 15  # How long to sleep between agent runs 🕒
 
 
 # Max Loss/Gain Settings FOR RISK AGENT 1/5/25
