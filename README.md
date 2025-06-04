@@ -75,6 +75,8 @@ Project updates will be posted in discord, join here: [moondev.com](http://moond
 - Sentiment Agent (`sentiment_agent.py`): analyzes Twitter sentiment for crypto tokens with voice announcements
 - Listing Arbitrage Agent (`listingarb_agent.py`): identifies promising Solana tokens on CoinGecko before they reach major exchanges like Binance and Coinbase, using parallel AI analysis for technical and fundamental insights
 - Focus Agent (`focus_agent.py`): randomly samples audio during coding sessions to maintain productivity, providing focus scores and voice alerts when focus drops (~$10/month, perfect for voice-to-code workflows)
+- Strategist Agent (`strategist_agent.py`): searches online for trending trading ideas and generates new strategy code
+- Backtester Agent (`backtester_agent.py`): runs quick backtests on generated strategies and saves the profitable ones
 
 ## 🚀 Project Progress & Roadmap
 ### Phase 1: Foundation & Basic Trading ✅
