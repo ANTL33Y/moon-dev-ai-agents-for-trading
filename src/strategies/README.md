@@ -10,6 +10,7 @@ strategies/
 ├── custom/              # Directory for your custom strategies
 │   ├── __init__.py
 │   ├── example_strategy.py
+│   ├── open_interest_momentum.py
 │   └── private_my_strategy.py
 └── __init__.py
 ```
@@ -46,9 +47,16 @@ class MyStrategy(BaseStrategy):
             'token': 'TOKEN_ADDRESS',
             'signal': 0.85,        # 85% confidence
             'direction': 'BUY',
-            'metadata': {
-                'reason': 'Strategy-specific reasoning',
-                'indicators': {'rsi': 28, 'trend': 'bullish'}
-            }
+        'metadata': {
+            'reason': 'Strategy-specific reasoning',
+            'indicators': {'rsi': 28, 'trend': 'bullish'}
         }
-``` 
+    }
+```
+
+## Open Interest Momentum Strategy
+This strategy combines spikes in overall open interest with short-term price momentum.
+It uses `MoonDevAPI.get_open_interest()` to track total open interest and `nice_funcs.get_data()`
+for recent price action. If open interest increases more than 1% alongside
+rising prices, it issues a **BUY** signal. If open interest drops more than 1%
+while price falls, it issues a **SELL** signal.
