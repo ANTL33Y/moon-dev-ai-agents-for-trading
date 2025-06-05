@@ -8,6 +8,7 @@ import importlib.util
 from datetime import datetime
 from termcolor import cprint
 from dotenv import load_dotenv
+from statistics import mean
 
 from src.config import MONITORED_TOKENS
 from src.strategies.base_strategy import BaseStrategy
@@ -36,29 +37,38 @@ class BacktesterAgent:
                 break
         return strategy_cls, path
 
-    def backtest(self, strategy: BaseStrategy, days: int = 3):
-        """Very naive backtest using last two candles"""
-        total_return = 0
-        tests = 0
+    def backtest(self, strategy: BaseStrategy, days: int = 5, timeframe: str = "1H", hold_period: int = 1):
+        """Run a slightly more thorough backtest over recent data"""
+        returns = []
         for token in MONITORED_TOKENS:
-            df = n.get_data(token, days_back_4_data=days, timeframe="1H")
-            if df is None or df.empty or len(df) < 2:
+            df = n.get_data(token, days_back_4_data=days, timeframe=timeframe)
+            if df is None or df.empty or len(df) <= hold_period:
                 continue
-            signal = strategy.generate_signals()
-            if not signal:
-                continue
-            direction = signal.get("direction")
-            if direction not in ["BUY", "SELL"]:
-                continue
-            entry = df["Close"].iloc[-2]
-            exit_price = df["Close"].iloc[-1]
-            if direction == "BUY":
-                ret = (exit_price - entry) / entry
-            else:
-                ret = (entry - exit_price) / entry
-            total_return += ret
-            tests += 1
-        return (total_return / tests) if tests else 0
+            # iterate through dataset and evaluate signals using trailing window
+            for i in range(len(df) - hold_period - 1):
+                data_slice = df.iloc[: i + 1]
+                try:
+                    signal = strategy.generate_signals(token=token, data=data_slice)  # type: ignore[arg-type]
+                except TypeError:
+                    signal = strategy.generate_signals()
+                if not signal:
+                    continue
+                direction = signal.get("direction")
+                if direction not in ["BUY", "SELL"]:
+                    continue
+                entry = df["Close"].iloc[i]
+                exit_price = df["Close"].iloc[i + hold_period]
+                ret = (
+                    (exit_price - entry) / entry
+                    if direction == "BUY"
+                    else (entry - exit_price) / entry
+                )
+                returns.append(ret)
+        if not returns:
+            return {"avg_return": 0.0, "win_rate": 0.0, "trades": 0}
+        avg_ret = mean(returns)
+        win_rate = sum(1 for r in returns if r > 0) / len(returns)
+        return {"avg_return": avg_ret, "win_rate": win_rate, "trades": len(returns)}
 
     def validate_and_save(self, code: str, threshold: float = 0.0):
         """Backtest code and keep it if average return above threshold"""
@@ -69,8 +79,11 @@ class BacktesterAgent:
             return False
         strategy = strategy_cls()
         result = self.backtest(strategy)
-        cprint(f"Backtest result: {result*100:.2f}%", "cyan")
-        if result > threshold:
+        cprint(
+            f"Backtest result: {result['avg_return']*100:.2f}% | Win rate: {result['win_rate']*100:.1f}% over {result['trades']} trades",
+            "cyan",
+        )
+        if result["avg_return"] > threshold:
             cprint(f"Strategy saved to {path}", "green")
             return True
         os.remove(path)

@@ -27,6 +27,7 @@ Current Market Snapshot:
 
 Using these ideas and market conditions, write a new trading strategy in Python.
 The strategy must inherit from `BaseStrategy` and implement `generate_signals()`.
+Include basic risk management such as stop loss and take profit levels.
 Respond ONLY with the Python code for the strategy.
 """
 
@@ -40,19 +41,35 @@ class StrategistAgent:
             raise ValueError("ANTHROPIC_KEY missing")
         self.client = anthropic.Anthropic(api_key=api_key)
 
-    def search_trending_strategies(self, limit: int = 5):
-        """Fetch recent strategy discussions from Reddit"""
-        try:
-            url = f"https://www.reddit.com/r/algotrading/new.json?limit={limit}"
-            headers = {"User-Agent": "Mozilla/5.0"}
-            resp = requests.get(url, headers=headers, timeout=10)
-            if resp.status_code == 200:
-                data = resp.json()
-                titles = [child["data"]["title"] for child in data["data"]["children"]]
-                return titles
-        except Exception as e:
-            cprint(f"Error fetching reddit ideas: {e}", "red")
+    def _reddit_titles(self, sort: str, limit: int):
+        """Helper to fetch titles from Reddit"""
+        url = f"https://www.reddit.com/r/algotrading/{sort}.json?limit={limit}"
+        headers = {"User-Agent": "Mozilla/5.0"}
+        resp = requests.get(url, headers=headers, timeout=10)
+        if resp.status_code == 200:
+            data = resp.json()
+            return [c["data"]["title"] for c in data.get("data", {}).get("children", [])]
         return []
+
+    def _hn_titles(self, limit: int):
+        """Fetch titles from HackerNews related to trading"""
+        url = f"https://hn.algolia.com/api/v1/search?query=trading%20strategy&tags=story&hitsPerPage={limit}"
+        resp = requests.get(url, timeout=10)
+        if resp.status_code == 200:
+            data = resp.json()
+            return [hit.get("title", "") for hit in data.get("hits", [])]
+        return []
+
+    def search_trending_strategies(self, limit: int = 5):
+        """Combine ideas from multiple sources"""
+        titles = []
+        try:
+            titles.extend(self._reddit_titles("new", limit))
+            titles.extend(self._reddit_titles("top", limit))
+            titles.extend(self._hn_titles(limit))
+        except Exception as e:
+            cprint(f"Error fetching ideas: {e}", "red")
+        return titles
 
     def get_market_snapshot(self):
         """Collect simple market data for monitored tokens"""
@@ -65,6 +82,7 @@ class StrategistAgent:
                 "last_close": df["Close"].iloc[-1],
                 "ma20": df["MA20"].iloc[-1],
                 "rsi": df["RSI"].iloc[-1],
+                "change_24h_pct": ((df["Close"].iloc[-1] - df["Close"].iloc[-24]) / df["Close"].iloc[-24]) * 100 if len(df) >= 24 else 0,
             }
         return snapshot
 
